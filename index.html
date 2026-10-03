@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conta Lote - Webcam</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+<style>
+:root{--bg:#eef1ea;--surface:#fbfcf8;--fg:#1b2a1f;--muted:#5d6b60;--line:#cfd6ca;--accent:#1f6b3a;--accent-fg:#fff;--tag:#e9b21c;--ok:#1f7a45;--bad:#b3261e}
+@media (prefers-color-scheme:dark){:root{--bg:#111713;--surface:#1a221c;--fg:#e6ece4;--muted:#9aa89d;--line:#2f3a32;--accent:#5fc27e;--accent-fg:#08210f;--tag:#f0c039;--ok:#6fd08c;--bad:#ff8a80;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,"Segoe UI",sans-serif;padding:20px 16px 40px}
+.app{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1{font-size:28px;margin:0;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:13px}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.btn{font:600 15px system-ui,sans-serif;padding:11px 14px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+label.f{display:flex;flex-direction:column;gap:4px;flex:1;min-width:150px}
+select,input[type=range]{width:100%}
+select{font:500 15px system-ui,sans-serif;padding:9px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg)}
+.cam{position:relative;background:#20261f;border:1px solid var(--line);border-radius:6px;overflow:hidden;aspect-ratio:16/9}
+video{display:none}
+canvas{display:block;width:100%;height:100%}
+.status{font-size:13px;padding:8px 10px;border-left:3px solid var(--tag);background:var(--surface)}
+.status.err{border-left-color:var(--bad);color:var(--bad)}
+.score{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.score div{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.num{font:600 38px/1.1 ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+.list{max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding:6px 10px;border-bottom:1px solid var(--line)}
+td{padding:7px 10px;border-bottom:1px solid var(--line)}
+td.m{font-family:ui-monospace,Consolas,monospace}
+</style>
+</head>
+<body>
+<div class="app">
+  <div>
+    <h1>Conta Lote · Webcam</h1>
+    <div class="sub">Detecção real no navegador. Conta quem cruza a linha A e depois a B (entrada) ou B e depois A (saída).</div>
+  </div>
+
+  <div class="row">
+    <button class="btn primary" id="b-cam" disabled>Ligar câmera</button>
+    <button class="btn" id="b-file" disabled>Usar vídeo gravado</button>
+    <input type="file" id="file" accept="video/*" hidden>
+    <button class="btn" id="b-stop" disabled>Parar</button>
+    <button class="btn" id="b-zero">Zerar contagem</button>
+  </div>
+
+  <div class="status" id="status">Carregando o modelo de detecção (precisa de internet na primeira vez)...</div>
+
+  <div class="cam"><video id="video" playsinline muted></video><canvas id="cv" width="960" height="540"></canvas></div>
+
+  <div class="score">
+    <div><div class="label">Entradas (A→B)</div><div class="num" id="n-in">0</div></div>
+    <div><div class="label">Saídas (B→A)</div><div class="num" id="n-out">0</div></div>
+    <div><div class="label">Saldo</div><div class="num" id="n-sal">0</div></div>
+  </div>
+
+  <div class="row">
+    <label class="f"><span class="label">Câmera</span>
+      <select id="camsel"><option value="">Traseira (padrão)</option></select></label>
+    <label class="f"><span class="label">O que contar</span>
+      <select id="classe">
+        <option value="cow">Boi / vaca</option>
+        <option value="person">Pessoa (teste na mesa)</option>
+        <option value="any">Boi, cavalo ou ovelha</option>
+      </select></label>
+    <label class="f"><span class="label">Linha A: <span id="va">40</span>%</span><input type="range" id="la" min="5" max="90" value="40"></label>
+    <label class="f"><span class="label">Linha B: <span id="vb">60</span>%</span><input type="range" id="lb" min="10" max="95" value="60"></label>
+    <label class="f"><span class="label">Confiança mínima: <span id="vc">50</span>%</span><input type="range" id="conf" min="20" max="90" value="50"></label>
+  </div>
+
+  <div class="list"><table><thead><tr><th>Hora</th><th>ID</th><th>Evento</th><th>Conf.</th></tr></thead><tbody id="ev"><tr><td colspan="4" class="sub">Nenhum evento ainda. Ligue a webcam ou abra um vídeo.</td></tr></tbody></table></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const video=$('video'),cv=$('cv'),c=cv.getContext('2d');
+let model=null,running=false,stream=null,tracks=[],nextId=1,nIn=0,nOut=0,events=[];
+const ANY=['cow','horse','sheep'];
+
+function status(t,err){$('status').textContent=t;$('status').className='status'+(err?' err':'')}
+function score(){$('n-in').textContent=nIn;$('n-out').textContent=nOut;$('n-sal').textContent=nIn-nOut}
+function log(id,txt,conf){
+  events.unshift({h:new Date().toLocaleTimeString('pt-BR'),id,txt,conf});
+  if(events.length>200)events.pop();
+  $('ev').innerHTML=events.map(e=>'<tr><td class="m">'+e.h+'</td><td class="m">#'+e.id+'</td><td>'+e.txt+'</td><td class="m">'+e.conf+'</td></tr>').join('');
+}
+['la','lb','conf'].forEach(k=>$(k).oninput=()=>{$('va').textContent=$('la').value;$('vb').textContent=$('lb').value;$('vc').textContent=$('conf').value});
+
+cocoSsd.load({base:'lite_mobilenet_v2'}).then(m=>{
+  model=m;$('b-cam').disabled=false;$('b-file').disabled=false;
+  status('Modelo pronto. Ligue a webcam ou abra um vídeo gravado do corredor.');
+}).catch(e=>status('Não foi possível carregar o modelo. Verifique a internet e recarregue a página. ('+e.message+')',true));
+
+async function openCam(){
+  stop();
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    status('O navegador bloqueou a câmera porque esta página não está em um endereço seguro (https). No celular, a página precisa estar hospedada em https.',true);return}
+  const id=$('camsel').value;
+  const v=id?{deviceId:{exact:id}}:{facingMode:{ideal:'environment'}};
+  v.width={ideal:1280};v.height={ideal:720};
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:v,audio:false});
+    video.removeAttribute('src');video.srcObject=stream;await video.play();
+    await listCams();start('Câmera ligada.');
+  }catch(e){status('A câmera não abriu: '+e.message+'. Autorize a câmera no navegador e feche outros apps que a estejam usando.',true)}
+}
+async function listCams(){
+  try{
+    const cams=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+    const cur=stream?stream.getVideoTracks()[0].getSettings().deviceId:'';
+    $('camsel').innerHTML=cams.map((d,i)=>'<option value="'+d.deviceId+'"'+(d.deviceId===cur?' selected':'')+'>'+(d.label||'Câmera '+(i+1))+'</option>').join('');
+  }catch(e){}
+}
+$('b-cam').onclick=openCam;
+$('camsel').onchange=()=>{if(stream)openCam()};
+$('b-file').onclick=()=>$('file').click();
+$('file').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;stop();
+  video.srcObject=null;video.src=URL.createObjectURL(f);video.loop=false;
+  try{await video.play();start('Vídeo em reprodução: '+f.name)}catch(err){status('Não foi possível abrir o vídeo: '+err.message,true)}
+};
+$('b-stop').onclick=()=>{stop();status('Parado.')};
+$('b-zero').onclick=()=>{nIn=0;nOut=0;tracks=[];score();status('Contagem zerada.')};
+
+function start(msg){if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(()=>{});running=true;tracks=[];$('b-stop').disabled=false;status(msg+' Contando...');loop()}
+function stop(){running=false;$('b-stop').disabled=true;
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  video.pause()}
+
+function zone(x,a,b){const lo=Math.min(a,b),hi=Math.max(a,b);return x<lo?0:x<hi?1:2}
+
+async function loop(){
+  if(!running)return;
+  if(video.readyState>=2&&video.videoWidth){
+    if(cv.width!==video.videoWidth){cv.width=video.videoWidth;cv.height=video.videoHeight}
+    const W=cv.width,H=cv.height,a=W*$('la').value/100,b=W*$('lb').value/100;
+    const min=$('conf').value/100,cls=$('classe').value;
+    let dets=[];
+    try{dets=await model.detect(video,30,min)}catch(e){}
+    dets=dets.filter(d=>cls==='any'?ANY.includes(d.class):d.class===cls)
+             .map(d=>({x:d.bbox[0],y:d.bbox[1],w:d.bbox[2],h:d.bbox[3],cx:d.bbox[0]+d.bbox[2]/2,cy:d.bbox[1]+d.bbox[3]/2,s:d.score,used:false}));
+    // associa detecções aos IDs existentes pelo centro mais próximo
+    const maxD=W*0.2;
+    for(const t of tracks){
+      let best=null,bd=maxD;
+      for(const d of dets){if(d.used)continue;const dist=Math.hypot(d.cx-t.cx,d.cy-t.cy);if(dist<bd){bd=dist;best=d}}
+      if(best){best.used=true;Object.assign(t,{x:best.x,y:best.y,w:best.w,h:best.h,cx:best.cx,cy:best.cy,s:best.s,missed:0})}
+      else t.missed++;
+    }
+    for(const d of dets)if(!d.used)tracks.push({id:nextId++,x:d.x,y:d.y,w:d.w,h:d.h,cx:d.cx,cy:d.cy,s:d.s,missed:0,origin:null,flash:0});
+    tracks=tracks.filter(t=>t.missed<20);
+    // regra das duas linhas
+    for(const t of tracks){
+      if(t.missed)continue;
+      const z=zone(t.cx,a,b);
+      if(t.origin===null){if(z!==1)t.origin=z}
+      else if(z===2&&t.origin===0){nIn++;t.origin=2;t.flash=15;score();log(t.id,'Entrada contada (A→B)',t.s.toFixed(2))}
+      else if(z===0&&t.origin===2){nOut++;t.origin=0;t.flash=15;score();log(t.id,'Saída contada (B→A)',t.s.toFixed(2))}
+    }
+    // desenho
+    c.drawImage(video,0,0,W,H);
+    const k=W/960;
+    [[a,'A'],[b,'B']].forEach(([x,l])=>{c.strokeStyle='#f0c039';c.lineWidth=3*k;c.setLineDash([14*k,10*k]);c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke();c.setLineDash([]);
+      c.fillStyle='#f0c039';c.font='600 '+(18*k)+'px monospace';c.fillText('LINHA '+l,x+6*k,24*k)});
+    for(const t of tracks){
+      if(t.missed>3)continue;
+      c.strokeStyle=t.flash>0?'#6fd08c':'#ffffff';c.lineWidth=(t.flash>0?5:2.5)*k;c.strokeRect(t.x,t.y,t.w,t.h);
+      c.fillStyle=c.strokeStyle;c.font='600 '+(16*k)+'px monospace';c.fillText('#'+t.id+' '+Math.round(t.s*100)+'%',t.x+4*k,Math.max(18*k,t.y-6*k));
+      if(t.flash>0)t.flash--;
+    }
+  }
+  if(video.ended){stop();status('Vídeo terminou. Entradas: '+nIn+', saídas: '+nOut+'.');return}
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
