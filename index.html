@@ -27,6 +27,10 @@ h2{font-size:16px;font-weight:700;margin:0}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 1px 2px rgba(23,37,28,.04)}
 .label{font-size:12px;font-weight:600;color:var(--muted)}
 .sub{color:var(--muted);font-size:13px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-soft);border-radius:12px;padding:10px 14px}
+.bar b{font-size:16px}
+.req{color:var(--rec)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 label.f{display:flex;flex-direction:column;gap:5px;min-width:0}
 input[type=text],input[type=number],select{font:500 16px var(--font);padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);width:100%}
@@ -67,16 +71,44 @@ td.m,th.m{font-variant-numeric:tabular-nums;text-align:right}
 <body>
 <div class="app">
   <header>
-    <h1>Conta Lote <small>versão 6</small></h1>
+    <h1>Conta Lote <small>versão 7</small></h1>
     <span class="pill" id="st">Carregando modelo...</span>
   </header>
 
-  <section class="card">
-    <h2>Sessão</h2>
+  <form class="card" id="tela-leilao" autocomplete="on">
+    <h2>Dados do leilão</h2>
+    <div class="sub">Preencha uma vez. Estes dados entram em todas as planilhas e nos nomes dos arquivos deste leilão.</div>
     <div class="grid">
-      <label class="f"><span class="label">Lote</span><input type="text" id="lote" placeholder="Ex.: Lote 3"></label>
-      <label class="f"><span class="label">Destino</span><input type="text" id="destino" placeholder="Ex.: Piquete 1"></label>
-      <label class="f"><span class="label">Esperado (cabeças)</span><input type="number" id="esperado" min="0" inputmode="numeric" placeholder="Opcional"></label>
+      <label class="f"><span class="label">Nome do leilão <span class="req">*</span></span><input type="text" id="l-nome" placeholder="Ex.: Leilão Virtual de Outubro" required></label>
+      <label class="f"><span class="label">Data <span class="req">*</span></span><input type="text" id="l-data" placeholder="dd/mm/aaaa" inputmode="numeric" required></label>
+    </div>
+    <div class="grid">
+      <label class="f"><span class="label">Proprietário dos animais</span><input type="text" id="l-prop" placeholder="Nome ou fazenda"></label>
+      <label class="f"><span class="label">Local (recinto, cidade/UF)</span><input type="text" id="l-local" placeholder="Ex.: Parque de Exposições, Bagé/RS"></label>
+    </div>
+    <div class="grid">
+      <label class="f"><span class="label">Leiloeira / organizador</span><input type="text" id="l-leiloeira" placeholder="Opcional"></label>
+      <label class="f"><span class="label">Responsável pela contagem</span><input type="text" id="l-oper" placeholder="Quem está operando o app"></label>
+    </div>
+    <label class="f"><span class="label">Observações</span><input type="text" id="l-obs" placeholder="Opcional"></label>
+    <div class="sub" id="l-erro" hidden></div>
+    <button class="btn primary" type="submit" style="padding:14px;font-size:17px">Continuar para a contagem</button>
+  </form>
+
+  <div class="stack" id="tela-app" hidden>
+  <div class="bar"><div><b id="bar-nome"></b><div class="sub" id="bar-sub"></div></div><button class="btn" id="b-trocar" type="button">Editar leilão</button></div>
+
+  <section class="card">
+    <h2>Lote</h2>
+    <div class="grid">
+      <label class="f"><span class="label">Número do lote</span><input type="text" id="lote" placeholder="Ex.: 12"></label>
+      <label class="f"><span class="label">Vendedor (dono dos animais)</span><input type="text" id="vendedor" placeholder="Nome ou fazenda"></label>
+      <label class="f"><span class="label">Comprador</span><input type="text" id="comprador" placeholder="Opcional"></label>
+    </div>
+    <div class="grid">
+      <label class="f"><span class="label">Categoria</span>
+        <select id="categoria"><option value="">Não informada</option><option>Bezerros</option><option>Bezerras</option><option>Garrotes</option><option>Novilhas</option><option>Vacas</option><option>Vacas com cria</option><option>Bois</option><option>Touros</option><option>Lote misto</option></select></label>
+      <label class="f"><span class="label">Esperado (cabeças)</span><input type="number" id="esperado" min="0" inputmode="numeric" placeholder="Do catálogo"></label>
     </div>
     <button class="go" id="b-sess">● Iniciar</button>
     <div class="sub" id="sess-info">Iniciar liga a câmera, conta e grava. Encerrar gera o vídeo e a planilha.</div>
@@ -128,17 +160,18 @@ td.m,th.m{font-variant-numeric:tabular-nums;text-align:right}
 
   <section class="card">
     <div class="row" style="justify-content:space-between"><h2>Histórico neste aparelho</h2><button class="btn" id="b-hist" hidden>Baixar histórico</button></div>
-    <div class="scroll"><table><thead><tr><th>Data</th><th>Lote</th><th class="m">Esp.</th><th class="m">Cont.</th><th class="m">Manual</th><th class="m">Erro</th></tr></thead>
+    <div class="scroll"><table><thead><tr><th>Data</th><th>Leilão</th><th>Lote</th><th class="m">Esp.</th><th class="m">Cont.</th><th class="m">Manual</th><th class="m">Erro</th></tr></thead>
       <tbody id="hist"></tbody></table></div>
   </section>
+  </div>
 </div>
 
 <script>
 const $=id=>document.getElementById(id);
 const video=$('video'),cv=$('cv'),c=cv.getContext('2d');
 let model=null,running=false,stream=null,tracks=[],nextId=1,nIn=0,nOut=0,events=[];
-let sess=null,rec=null,chunks=[],hist=[];
-const KEY='contalote_sessao',HKEY='contalote_hist',ANY=['cow','horse','sheep'];
+let sess=null,rec=null,chunks=[],hist=[],L=null;
+const LKEY='contalote_leilao',KEY='contalote_sessao',HKEY='contalote_hist',ANY=['cow','horse','sheep'];
 
 function status(t,kind){$('st').textContent=t;$('st').className='pill'+(kind?' '+kind:'')}
 function score(){$('n-in').textContent=nIn;$('n-out').textContent=nOut;$('n-sal').textContent=nIn-nOut}
@@ -246,13 +279,15 @@ function num(v){return v===''||v==null||isNaN(v)?null:Number(v)}
 function erro(s){const m=num(s.manual);if(m===null||m===0)return null;return ((s.nIn-s.nOut)-m)/m*100}
 function fmtErro(s){const e=erro(s);return e===null?'':(e>0?'+':'')+e.toFixed(1).replace('.',',')+'%'}
 function makeCsv(s){
-  const L=['Conta Lote;sessão','Lote;'+(s.lote||''),'Destino;'+(s.destino||''),'Início;'+dt(s.start),'Fim;'+(s.end?dt(s.end):'interrompida'),
+  const q=s.leilao||{};const L=['Conta Lote;contagem de lote','Leilão;'+(q.nome||''),'Data do leilão;'+(q.data||''),'Local;'+(q.local||''),'Leiloeira;'+(q.leiloeira||''),'Proprietário;'+(q.prop||''),'Responsável pela contagem;'+(q.oper||''),'Observações;'+(q.obs||''),'','Lote;'+(s.lote||''),'Vendedor;'+(s.vendedor||''),'Comprador;'+(s.comprador||''),'Categoria;'+(s.categoria||''),'Início;'+dt(s.start),'Fim;'+(s.end?dt(s.end):'interrompida'),
     'Esperado;'+(num(s.esperado)??''),'Entradas;'+s.nIn,'Saídas;'+s.nOut,'Contado (saldo);'+(s.nIn-s.nOut),
     'Contagem manual;'+(num(s.manual)??''),'Erro vs manual;'+fmtErro(s),'Ajustes manuais;'+(s.ajustes||0),'','Hora;ID;Evento;Confiança'];
   (s.events||[]).forEach(e=>L.push([e.h,e.id,e.txt,String(e.conf).replace('.',',')].join(';')));
   return '﻿'+L.join('\r\n');
 }
-function csvFile(s){return new File([makeCsv(s)],'conta-lote_'+stamp(new Date(s.start))+'.csv',{type:'text/csv'})}
+function slug(t){return String(t||'').normalize('NFD').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30)}
+function fname(s){const a=slug(s.leilao&&s.leilao.nome),b=slug(s.lote);return 'conta-lote_'+(a?a+'_':'')+(b?'lote-'+b+'_':'')+stamp(new Date(s.start))}
+function csvFile(s){return new File([makeCsv(s)],fname(s)+'.csv',{type:'text/csv'})}
 
 $('b-sess').onclick=async()=>{
   if(sess){endSession();return}
@@ -263,7 +298,7 @@ $('b-sess').onclick=async()=>{
 function startSession(){
   nIn=0;nOut=0;events=[];score();$('res').hidden=true;
   $('ev').innerHTML='<tr><td colspan="4" class="sub">Sessão iniciada. Aguardando o primeiro animal.</td></tr>';
-  sess={start:Date.now(),events:[],lote:$('lote').value.trim(),destino:$('destino').value.trim(),esperado:$('esperado').value,ajustes:0,manual:''};
+  sess={start:Date.now(),events:[],leilao:L,lote:$('lote').value.trim(),vendedor:$('vendedor').value.trim(),comprador:$('comprador').value.trim(),categoria:$('categoria').value,esperado:$('esperado').value,ajustes:0,manual:''};
   chunks=[];rec=null;
   const mime=pickMime();
   if(mime&&cv.captureStream){
@@ -281,14 +316,15 @@ function endSession(){
   const s=sess;sess=null;s.end=Date.now();s.nIn=nIn;s.nOut=nOut;
   $('b-sess').textContent='● Iniciar';$('b-sess').classList.remove('on');$('rec-chip').hidden=true;
   $('b-minus').disabled=true;$('b-plus').disabled=true;
-  $('sess-info').textContent='Sessão encerrada. Envie ou baixe os arquivos antes de iniciar outra.';
+  $('sess-info').textContent='Lote encerrado. Envie ou baixe os arquivos antes de iniciar o próximo.';
+  ['lote','comprador','esperado'].forEach(k=>$(k).value='');$('categoria').value='';
   const r=rec;rec=null;
   const finish=()=>{
     let vid=null;
     if(chunks.length){const type=(r.mimeType||'video/webm').split(';')[0];
-      vid=new File(chunks,'conta-lote_'+stamp(new Date(s.start))+(type.includes('mp4')?'.mp4':'.webm'),{type})}
+      vid=new File(chunks,fname(s)+(type.includes('mp4')?'.mp4':'.webm'),{type})}
     try{localStorage.removeItem(KEY)}catch(e){}
-    hist.unshift({start:s.start,end:s.end,lote:s.lote,destino:s.destino,esperado:s.esperado,nIn:s.nIn,nOut:s.nOut,ajustes:s.ajustes,manual:''});
+    hist.unshift({start:s.start,end:s.end,leilao:s.leilao,lote:s.lote,vendedor:s.vendedor,comprador:s.comprador,categoria:s.categoria,esperado:s.esperado,nIn:s.nIn,nOut:s.nOut,ajustes:s.ajustes,manual:''});
     saveHist();showResult(s,vid,false);
   };
   if(r&&r.state!=='inactive'){r.onstop=finish;r.stop()}else finish();
@@ -299,7 +335,7 @@ function showResult(s,vid,recovered){
   const contado=s.nIn-s.nOut,esp=num(s.esperado);
   box.appendChild(el('h2','',recovered?'Sessão interrompida (recuperada, sem vídeo)':'Resultado da sessão'));
   box.appendChild(el('div','big',contado+' cabeças contadas'));
-  box.appendChild(el('div','sub',(s.lote?s.lote+' · ':'')+(s.destino?s.destino+' · ':'')+s.nIn+' entradas, '+s.nOut+' saídas'+(s.ajustes?' · '+s.ajustes+' ajuste(s) manual(is)':'')));
+  box.appendChild(el('div','sub',(s.lote?'Lote '+s.lote+' · ':'')+(s.vendedor?s.vendedor+' · ':'')+(s.categoria?s.categoria+' · ':'')+s.nIn+' entradas, '+s.nOut+' saídas'+(s.ajustes?' · '+s.ajustes+' ajuste(s) manual(is)':'')));
   if(esp!==null){const d=contado-esp;box.appendChild(el('div','','<span class="tag'+(d?' bad':'')+'">'+(d?'Diferença de '+(d>0?'+':'')+d+' contra o esperado ('+esp+')':'Confere com o esperado ('+esp+')')+'</span>'))}
   const f=el('label','f','<span class="label">Contagem manual (para medir o erro do app)</span>');
   const inp=el('input');inp.type='number';inp.min='0';inp.inputMode='numeric';inp.id='manual';inp.placeholder='Digite o número contado à mão';
@@ -323,17 +359,34 @@ function showResult(s,vid,recovered){
   box.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
+// ---------- leilão ----------
+const LF={nome:'l-nome',data:'l-data',prop:'l-prop',local:'l-local',leiloeira:'l-leiloeira',oper:'l-oper',obs:'l-obs'};
+function hoje(){return new Date().toLocaleDateString('pt-BR')}
+function showForm(){for(const k in LF)$(LF[k]).value=(L&&L[k])||'';if(!$('l-data').value)$('l-data').value=hoje();
+  $('tela-leilao').hidden=false;$('tela-app').hidden=true;window.scrollTo(0,0)}
+function showApp(){$('tela-leilao').hidden=true;$('tela-app').hidden=false;
+  $('bar-nome').textContent=L.nome;$('bar-sub').textContent=[L.data,L.local,L.prop].filter(Boolean).join(' · ');
+  if(!$('vendedor').value)$('vendedor').value=L.prop||'';window.scrollTo(0,0)}
+$('tela-leilao').onsubmit=e=>{e.preventDefault();
+  const n={};for(const k in LF)n[k]=$(LF[k]).value.trim();
+  if(!n.nome||!n.data){$('l-erro').hidden=false;$('l-erro').textContent='Preencha o nome do leilão e a data.';return}
+  $('l-erro').hidden=true;L=n;try{localStorage.setItem(LKEY,JSON.stringify(L))}catch(err){}
+  $('vendedor').value=L.prop||'';showApp()};
+$('b-trocar').onclick=()=>{if(sess){status('Encerre o lote antes de editar o leilão','');return}showForm()};
+try{L=JSON.parse(localStorage.getItem(LKEY)||'null')}catch(e){L=null}
+if(L&&L.nome&&L.data===hoje())showApp();else{if(L)L.data='';showForm()}
+
 // ---------- histórico ----------
 function saveHist(){try{localStorage.setItem(HKEY,JSON.stringify(hist.slice(0,200)))}catch(e){}renderHist()}
 function renderHist(){
   $('b-hist').hidden=!hist.length;
-  $('hist').innerHTML=hist.length?hist.map(h=>'<tr><td>'+dt(h.start).slice(0,17)+'</td><td>'+(h.lote||'')+'</td><td class="m">'+(num(h.esperado)??'')+'</td><td class="m">'+(h.nIn-h.nOut)+'</td><td class="m">'+(num(h.manual)??'')+'</td><td class="m">'+fmtErro(h)+'</td></tr>').join('')
-    :'<tr><td colspan="6" class="sub">Nenhuma sessão ainda. As sessões encerradas aparecem aqui.</td></tr>';
+  $('hist').innerHTML=hist.length?hist.map(h=>'<tr><td>'+dt(h.start).slice(0,17)+'</td><td>'+((h.leilao&&h.leilao.nome)||'')+'</td><td>'+(h.lote||'')+'</td><td class="m">'+(num(h.esperado)??'')+'</td><td class="m">'+(h.nIn-h.nOut)+'</td><td class="m">'+(num(h.manual)??'')+'</td><td class="m">'+fmtErro(h)+'</td></tr>').join('')
+    :'<tr><td colspan="7" class="sub">Nenhuma sessão ainda. As sessões encerradas aparecem aqui.</td></tr>';
 }
 $('b-hist').onclick=()=>{
-  const L=['Início;Fim;Lote;Destino;Esperado;Entradas;Saídas;Contado;Manual;Erro;Ajustes'];
-  hist.forEach(h=>L.push([dt(h.start),dt(h.end),h.lote||'',h.destino||'',num(h.esperado)??'',h.nIn,h.nOut,h.nIn-h.nOut,num(h.manual)??'',fmtErro(h),h.ajustes||0].join(';')));
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+L.join('\r\n')],{type:'text/csv'}));
+  const R=['Leilão;Data do leilão;Proprietário;Início;Fim;Lote;Vendedor;Comprador;Categoria;Esperado;Entradas;Saídas;Contado;Manual;Erro;Ajustes'];
+  hist.forEach(h=>{const q=h.leilao||{};R.push([q.nome||'',q.data||'',q.prop||'',dt(h.start),dt(h.end),h.lote||'',h.vendedor||'',h.comprador||'',h.categoria||'',num(h.esperado)??'',h.nIn,h.nOut,h.nIn-h.nOut,num(h.manual)??'',fmtErro(h),h.ajustes||0].join(';'))});
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+R.join('\r\n')],{type:'text/csv'}));
   a.download='conta-lote_historico.csv';document.body.appendChild(a);a.click();a.remove();
 };
 try{hist=JSON.parse(localStorage.getItem(HKEY)||'[]')||[]}catch(e){hist=[]}
