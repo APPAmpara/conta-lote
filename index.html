@@ -285,7 +285,7 @@ function makeCsv(s){
   (s.events||[]).forEach(e=>L.push([e.h,e.id,e.txt,String(e.conf).replace('.',',')].join(';')));
   return '﻿'+L.join('\r\n');
 }
-function slug(t){return String(t||'').normalize('NFD').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30)}
+function slug(t){return String(t||'').normalize('NFD').replace(/\p{M}/gu,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30)}
 function fname(s){const a=slug(s.leilao&&s.leilao.nome),b=slug(s.lote);return 'conta-lote_'+(a?a+'_':'')+(b?'lote-'+b+'_':'')+stamp(new Date(s.start))}
 function csvFile(s){return new File([makeCsv(s)],fname(s)+'.csv',{type:'text/csv'})}
 
