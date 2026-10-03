@@ -3,23 +3,40 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f6f8f5">
+<meta name="theme-color" content="#24421f">
 <title>Conta Lote</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700;800&family=Figtree:wght@400;500;600;700;800&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 <style>
-:root{color-scheme:light;--bg:#f6f8f5;--card:#ffffff;--fg:#17251c;--muted:#66756b;--line:#e2e8e1;--soft:#eef3ee;
-  --accent:#1f7a45;--accent-soft:#e3f2e8;--rec:#d23b2f;--rec-soft:#fdeceb;--warn:#a86200;--warn-soft:#fdf3e0;
-  --font:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,"SF Mono",Consolas,monospace}
+:root{color-scheme:light;--bg:#f2f4ea;--card:#ffffff;--fg:#1f2a1a;--muted:#667059;--line:#dfe4d3;--soft:#edf1e2;
+  --accent:#2f6b2a;--accent-soft:#e2eed6;--pasto:#24421f;--couro:#7a2e1e;--palha:#e8c66a;--rec:#a8321f;--rec-soft:#f8e6e1;--warn:#8a5a00;--warn-soft:#fbf0d2;
+  --font:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;--display:"Bitter",Georgia,serif;--mono:ui-monospace,"SF Mono",Consolas,monospace}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 var(--font);padding:16px 16px 48px}
-.app{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
-header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-h1{font-size:26px;font-weight:800;margin:0;letter-spacing:-.02em}
-h1 small{font-size:12px;font-weight:500;color:var(--muted);letter-spacing:0;margin-left:6px}
-h2{font-size:16px;font-weight:700;margin:0}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 var(--font)}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px}
+.top{background:var(--pasto);color:#fff;position:sticky;top:0;z-index:5}
+.top .wrap{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding-block:12px}
+.brand{font:800 22px var(--display);letter-spacing:-.01em;display:flex;align-items:baseline;gap:8px}
+.brand i{width:14px;height:18px;background:var(--palha);border-radius:3px 3px 7px 7px;display:inline-block;align-self:center}
+.brand small{font:500 12px var(--font);opacity:.7}
+main{padding-block:20px 40px}
+.hero{display:grid;gap:18px;align-items:stretch}
+.photo{position:relative;border-radius:18px;overflow:hidden;min-height:340px;background:#24421f url(boi.jpg) 62% 40%/cover no-repeat;display:flex;align-items:flex-end}
+.photo::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,34,16,0) 35%,rgba(20,34,16,.86) 100%)}
+.photo div{position:relative;padding:20px;color:#fff}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--palha)}
+.photo h2{font:800 clamp(24px,4.4vw,38px)/1.12 var(--display);margin:6px 0 8px;text-wrap:balance;color:#fff}
+.photo p{margin:0;font-size:15px;max-width:44ch;opacity:.92}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:18px}
+.steps div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.steps b{display:block;font:700 16px var(--display);color:var(--couro);margin-bottom:2px}
+.cols{display:grid;gap:14px}
+@media(min-width:900px){.hero{grid-template-columns:1.15fr 1fr}.photo{min-height:560px}
+  .cols{grid-template-columns:1.35fr 1fr;align-items:start}.c-cam{order:1}.c-lote{order:2}}
+footer{color:var(--muted);font-size:13px;text-align:center;padding:0 16px 28px}
+h2{font:700 19px var(--display);margin:0;color:var(--pasto)}
 .pill{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;padding:5px 12px;border-radius:99px;background:var(--warn-soft);color:var(--warn)}
 .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
 .pill.ok{background:var(--accent-soft);color:var(--accent)}
@@ -28,8 +45,8 @@ h2{font-size:16px;font-weight:700;margin:0}
 .label{font-size:12px;font-weight:600;color:var(--muted)}
 .sub{color:var(--muted);font-size:13px}
 .stack{display:flex;flex-direction:column;gap:14px}
-.bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:var(--accent-soft);border-radius:12px;padding:10px 14px}
-.bar b{font-size:16px}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--couro);border-radius:12px;padding:10px 14px}
+.bar b{font:700 18px var(--display)}
 .req{color:var(--rec)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 label.f{display:flex;flex-direction:column;gap:5px;min-width:0}
@@ -40,7 +57,7 @@ input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible,su
 .btn{font:600 15px var(--font);padding:11px 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer;text-decoration:none;display:inline-block;text-align:center}
 .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
-.go{font:700 18px var(--font);padding:16px;border-radius:12px;border:0;background:var(--rec);color:#fff;cursor:pointer;width:100%}
+.go{font:700 18px var(--font);box-shadow:0 2px 0 rgba(0,0,0,.15);padding:16px;border-radius:12px;border:0;background:var(--rec);color:#fff;cursor:pointer;width:100%}
 .go.on{background:var(--fg)}
 .cam{position:relative;border-radius:12px;overflow:hidden;background:#1d241f}
 video{display:none}
@@ -69,13 +86,20 @@ td.m,th.m{font-variant-numeric:tabular-nums;text-align:right}
 </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <h1>Conta Lote <small>versão 7</small></h1>
-    <span class="pill" id="st">Carregando modelo...</span>
-  </header>
+<header class="top"><div class="wrap">
+  <div class="brand"><i></i>Conta Lote <small>versão 8</small></div>
+  <span class="pill" id="st">Carregando modelo...</span>
+</div></header>
+<main class="wrap">
+<div id="tela-leilao">
+ <div class="hero">
+  <div class="photo"><div>
+    <span class="eyebrow">Contagem de gado em leilões</span>
+    <h2>Cada lote contado, gravado e conferido.</h2>
+    <p>A câmera conta os animais que passam pelo corredor e guarda o vídeo e a planilha de cada lote.</p>
+  </div></div>
 
-  <form class="card" id="tela-leilao" autocomplete="on">
+  <form class="card" id="form-leilao" autocomplete="on">
     <h2>Dados do leilão</h2>
     <div class="sub">Preencha uma vez. Estes dados entram em todas as planilhas e nos nomes dos arquivos deste leilão.</div>
     <div class="grid">
@@ -94,11 +118,19 @@ td.m,th.m{font-variant-numeric:tabular-nums;text-align:right}
     <div class="sub" id="l-erro" hidden></div>
     <button class="btn primary" type="submit" style="padding:14px;font-size:17px">Continuar para a contagem</button>
   </form>
+ </div>
+ <div class="steps">
+  <div><b>1. Informe o leilão</b><span class="sub">Nome, data e proprietário entram em todos os registros.</span></div>
+  <div><b>2. Conte cada lote</b><span class="sub">Toque em Iniciar, deixe o lote passar e toque em Encerrar.</span></div>
+  <div><b>3. Guarde a prova</b><span class="sub">Vídeo e planilha de cada lote vão para o seu Drive.</span></div>
+ </div>
+</div>
 
   <div class="stack" id="tela-app" hidden>
   <div class="bar"><div><b id="bar-nome"></b><div class="sub" id="bar-sub"></div></div><button class="btn" id="b-trocar" type="button">Editar leilão</button></div>
 
-  <section class="card">
+  <div class="cols">
+  <section class="card c-lote">
     <h2>Lote</h2>
     <div class="grid">
       <label class="f"><span class="label">Número do lote</span><input type="text" id="lote" placeholder="Ex.: 12"></label>
@@ -114,7 +146,7 @@ td.m,th.m{font-variant-numeric:tabular-nums;text-align:right}
     <div class="sub" id="sess-info">Iniciar liga a câmera, conta e grava. Encerrar gera o vídeo e a planilha.</div>
   </section>
 
-  <section class="card">
+  <section class="card c-cam">
     <div class="cam"><video id="video" playsinline muted></video><canvas id="cv" width="960" height="540"></canvas><span class="chip" id="rec-chip" hidden>● REC 00:00</span></div>
     <div class="score">
       <div class="tile main"><div class="label">Entradas</div><div class="num" id="n-in">0</div></div>
@@ -127,6 +159,7 @@ td.m,th.m{font-variant-numeric:tabular-nums;text-align:right}
     </div>
   </section>
 
+  </div>
   <section class="card" id="res" hidden></section>
 
   <details class="card">
@@ -164,7 +197,8 @@ td.m,th.m{font-variant-numeric:tabular-nums;text-align:right}
       <tbody id="hist"></tbody></table></div>
   </section>
   </div>
-</div>
+</main>
+<footer>Conta Lote · contagem por câmera para conferência. A contagem manual continua sendo a oficial até o erro do app estar medido.</footer>
 
 <script>
 const $=id=>document.getElementById(id);
@@ -183,7 +217,7 @@ function log(id,txt,conf){
 }
 ['la','lb','conf'].forEach(k=>$(k).oninput=()=>{$('va').textContent=$('la').value;$('vb').textContent=$('lb').value;$('vc').textContent=$('conf').value});
 
-cocoSsd.load({base:'lite_mobilenet_v2'}).then(m=>{
+(window.cocoSsd?cocoSsd.load({base:'lite_mobilenet_v2'}):Promise.reject(new Error('sem rede'))).then(m=>{
   model=m;$('b-cam').disabled=false;$('b-file').disabled=false;status('Modelo pronto','ok');
 }).catch(e=>status('Modelo não carregou. Verifique a internet e recarregue.','err'));
 
@@ -367,7 +401,7 @@ function showForm(){for(const k in LF)$(LF[k]).value=(L&&L[k])||'';if(!$('l-data
 function showApp(){$('tela-leilao').hidden=true;$('tela-app').hidden=false;
   $('bar-nome').textContent=L.nome;$('bar-sub').textContent=[L.data,L.local,L.prop].filter(Boolean).join(' · ');
   if(!$('vendedor').value)$('vendedor').value=L.prop||'';window.scrollTo(0,0)}
-$('tela-leilao').onsubmit=e=>{e.preventDefault();
+$('form-leilao').onsubmit=e=>{e.preventDefault();
   const n={};for(const k in LF)n[k]=$(LF[k]).value.trim();
   if(!n.nome||!n.data){$('l-erro').hidden=false;$('l-erro').textContent='Preencha o nome do leilão e a data.';return}
   $('l-erro').hidden=true;L=n;try{localStorage.setItem(LKEY,JSON.stringify(L))}catch(err){}
