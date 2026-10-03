@@ -47,7 +47,7 @@ a.btn{text-decoration:none;display:inline-block}
 <div class="app">
   <div>
     <h1>Conta Lote · Webcam</h1>
-    <div class="sub">Detecção real no navegador. Conta quem cruza a linha A e depois a B (entrada) ou B e depois A (saída).</div>
+    <div class="sub">Detecção real no navegador. Conta quem cruza a linha A e depois a B (entrada) ou B e depois A (saída). <span id="ver">Versão 5.</span></div>
   </div>
 
   <div class="row">
@@ -155,7 +155,7 @@ function zone(x,a,b){const lo=Math.min(a,b),hi=Math.max(a,b);return x<lo?0:x<hi?
 async function loop(){
   if(!running)return;
   if(video.readyState>=2&&video.videoWidth){
-    if(cv.width!==video.videoWidth){cv.width=video.videoWidth;cv.height=video.videoHeight}
+    if(cv.width!==video.videoWidth||cv.height!==video.videoHeight){cv.width=video.videoWidth;cv.height=video.videoHeight;tracks=[]}
     const W=cv.width,H=cv.height,a=W*$('la').value/100,b=W*$('lb').value/100;
     const min=$('conf').value/100,cls=$('classe').value;
     let dets=[];
