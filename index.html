@@ -35,6 +35,11 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}
 th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding:6px 10px;border-bottom:1px solid var(--line)}
 td{padding:7px 10px;border-bottom:1px solid var(--line)}
 td.m{font-family:ui-monospace,Consolas,monospace}
+.btn.rec{background:#b3261e;color:#fff;border-color:#b3261e;font-size:17px;padding:14px 22px}
+.btn.rec.on{background:#1b1b1b;border-color:#1b1b1b}
+a.btn{text-decoration:none;display:inline-block}
+.result{border:2px solid var(--ok);border-radius:6px;padding:14px;background:var(--surface);display:flex;flex-direction:column;gap:10px}
+.result b{font-size:18px}
 </style>
 </head>
 <body>
@@ -52,6 +57,11 @@ td.m{font-family:ui-monospace,Consolas,monospace}
     <button class="btn" id="b-zero">Zerar contagem</button>
   </div>
 
+  <div class="row" style="align-items:center">
+    <button class="btn rec" id="b-sess" disabled>● Iniciar</button>
+    <span class="sub" id="sess-info">Ligue a câmera para liberar o botão Iniciar. A contagem e a gravação só valem depois dele.</span>
+  </div>
+
   <div class="status" id="status">Carregando o modelo de detecção (precisa de internet na primeira vez)...</div>
 
   <div class="cam"><video id="video" playsinline muted></video><canvas id="cv" width="960" height="540"></canvas></div>
@@ -61,6 +71,8 @@ td.m{font-family:ui-monospace,Consolas,monospace}
     <div><div class="label">Saídas (B→A)</div><div class="num" id="n-out">0</div></div>
     <div><div class="label">Saldo</div><div class="num" id="n-sal">0</div></div>
   </div>
+
+  <div class="result" id="res" hidden></div>
 
   <div class="row">
     <label class="f"><span class="label">Câmera</span>
@@ -83,12 +95,14 @@ td.m{font-family:ui-monospace,Consolas,monospace}
 const $=id=>document.getElementById(id);
 const video=$('video'),cv=$('cv'),c=cv.getContext('2d');
 let model=null,running=false,stream=null,tracks=[],nextId=1,nIn=0,nOut=0,events=[];
+let sess=null,rec=null,chunks=[];const KEY='contalote_sessao';
 const ANY=['cow','horse','sheep'];
 
 function status(t,err){$('status').textContent=t;$('status').className='status'+(err?' err':'')}
 function score(){$('n-in').textContent=nIn;$('n-out').textContent=nOut;$('n-sal').textContent=nIn-nOut}
 function log(id,txt,conf){
   events.unshift({h:new Date().toLocaleTimeString('pt-BR'),id,txt,conf});
+  if(sess){sess.events.push(events[0]);persist()}
   if(events.length>200)events.pop();
   $('ev').innerHTML=events.map(e=>'<tr><td class="m">'+e.h+'</td><td class="m">#'+e.id+'</td><td>'+e.txt+'</td><td class="m">'+e.conf+'</td></tr>').join('');
 }
@@ -130,8 +144,8 @@ $('file').onchange=async e=>{
 $('b-stop').onclick=()=>{stop();status('Parado.')};
 $('b-zero').onclick=()=>{nIn=0;nOut=0;tracks=[];score();status('Contagem zerada.')};
 
-function start(msg){if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(()=>{});running=true;tracks=[];$('b-stop').disabled=false;status(msg+' Contando...');loop()}
-function stop(){running=false;$('b-stop').disabled=true;
+function start(msg){$('b-sess').disabled=false;$('sess-info').textContent='Pronto. Toque em Iniciar para começar a contar e gravar.';if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(()=>{});running=true;tracks=[];$('b-stop').disabled=false;status(msg+' Contando...');loop()}
+function stop(){if(sess)endSession();$('b-sess').disabled=true;running=false;$('b-stop').disabled=true;
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
   video.pause()}
 
@@ -162,8 +176,8 @@ async function loop(){
       if(t.missed)continue;
       const z=zone(t.cx,a,b);
       if(t.origin===null){if(z!==1)t.origin=z}
-      else if(z===2&&t.origin===0){nIn++;t.origin=2;t.flash=15;score();log(t.id,'Entrada contada (A→B)',t.s.toFixed(2))}
-      else if(z===0&&t.origin===2){nOut++;t.origin=0;t.flash=15;score();log(t.id,'Saída contada (B→A)',t.s.toFixed(2))}
+      else if(z===2&&t.origin===0){t.origin=2;if(sess){nIn++;t.flash=15;score();log(t.id,'Entrada contada (A→B)',t.s.toFixed(2))}}
+      else if(z===0&&t.origin===2){t.origin=0;if(sess){nOut++;t.flash=15;score();log(t.id,'Saída contada (B→A)',t.s.toFixed(2))}}
     }
     // desenho
     c.drawImage(video,0,0,W,H);
@@ -177,9 +191,75 @@ async function loop(){
       if(t.flash>0)t.flash--;
     }
   }
+  if(sess){const d=Math.floor((Date.now()-sess.start)/1000);
+    $('sess-info').textContent='Sessão em andamento '+String(Math.floor(d/60)).padStart(2,'0')+':'+String(d%60).padStart(2,'0')+(rec?' · gravando vídeo':' · sem gravação de vídeo neste navegador')}
   if(video.ended){stop();status('Vídeo terminou. Entradas: '+nIn+', saídas: '+nOut+'.');return}
   requestAnimationFrame(loop);
 }
+
+// ---------- sessão: contagem + gravação + arquivos ----------
+function persist(){try{localStorage.setItem(KEY,JSON.stringify({start:sess.start,nIn,nOut,events:sess.events}))}catch(e){}}
+function pickMime(){if(!window.MediaRecorder)return '';
+  return ['video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||''}
+function stamp(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'_'+p(d.getHours())+'h'+p(d.getMinutes())}
+function makeCsv(s){
+  const L=['Conta Lote;sessão','Início;'+new Date(s.start).toLocaleString('pt-BR'),'Fim;'+(s.end?new Date(s.end).toLocaleString('pt-BR'):'interrompida'),
+    'Entradas;'+s.nIn,'Saídas;'+s.nOut,'Saldo;'+(s.nIn-s.nOut),'','Hora;ID;Evento;Confiança'];
+  s.events.forEach(e=>L.push([e.h,e.id,e.txt,String(e.conf).replace('.',',')].join(';')));
+  return '\ufeff'+L.join('\r\n');
+}
+$('b-sess').onclick=()=>{sess?endSession():startSession()};
+function startSession(){
+  nIn=0;nOut=0;events=[];score();$('res').hidden=true;
+  $('ev').innerHTML='<tr><td colspan="4" class="sub">Sessão iniciada. Aguardando o primeiro animal.</td></tr>';
+  sess={start:Date.now(),events:[]};chunks=[];rec=null;
+  const mime=pickMime();
+  if(mime&&cv.captureStream){
+    try{rec=new MediaRecorder(cv.captureStream(15),{mimeType:mime,videoBitsPerSecond:1000000});
+      rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};rec.start(1000)}catch(e){rec=null}}
+  $('b-sess').textContent='■ Encerrar';$('b-sess').classList.add('on');persist();
+  status('Sessão iniciada. Contando'+(rec?' e gravando.':'. Este navegador não grava vídeo; só a contagem será salva.'));
+}
+function endSession(){
+  const s=sess;sess=null;s.end=Date.now();s.nIn=nIn;s.nOut=nOut;
+  $('b-sess').textContent='● Iniciar';$('b-sess').classList.remove('on');
+  $('sess-info').textContent='Sessão encerrada. Toque em Iniciar para uma nova.';
+  const r=rec;rec=null;
+  const finish=()=>{
+    const name='conta-lote_'+stamp(new Date(s.start));
+    const files=[new File([makeCsv(s)],name+'.csv',{type:'text/csv'})];
+    if(chunks.length){const type=(r.mimeType||'video/webm').split(';')[0];
+      files.push(new File(chunks,name+(type.includes('mp4')?'.mp4':'.webm'),{type}))}
+    try{localStorage.removeItem(KEY)}catch(e){}
+    showResult(s,files,false);status('Sessão encerrada. Envie ou baixe os arquivos.');
+  };
+  if(r&&r.state!=='inactive'){r.onstop=finish;r.stop()}else finish();
+}
+function showResult(s,files,recovered){
+  const box=$('res');box.hidden=false;box.innerHTML='';
+  const h=document.createElement('div');
+  h.innerHTML='<div class="label">'+(recovered?'Sessão anterior interrompida (recuperada, sem vídeo)':'Sessão encerrada')+'</div><b>'+s.nIn+' entradas · '+s.nOut+' saídas · saldo '+(s.nIn-s.nOut)+'</b>'+
+    '<div class="sub">Início '+new Date(s.start).toLocaleString('pt-BR')+' · '+s.events.length+' eventos</div>';
+  box.appendChild(h);
+  const row=document.createElement('div');row.className='row';box.appendChild(row);
+  if(navigator.canShare&&navigator.canShare({files})){
+    const b=document.createElement('button');b.className='btn primary';b.textContent='Enviar para o Drive';
+    b.onclick=async()=>{try{await navigator.share({files,title:'Conta Lote '+new Date(s.start).toLocaleString('pt-BR')})}
+      catch(e){if(e.name!=='AbortError')status('O compartilhamento falhou ('+e.message+'). Use os botões de baixar e envie pelo app do Drive.',true)}};
+    row.appendChild(b);
+  }
+  files.forEach(f=>{const a=document.createElement('a');a.className='btn';a.href=URL.createObjectURL(f);a.download=f.name;
+    const mb=f.size/1048576;
+    a.textContent=(f.type.startsWith('video')?'Baixar vídeo':'Baixar planilha')+' ('+(mb>=1?mb.toFixed(1)+' MB':Math.max(1,Math.round(f.size/1024))+' KB')+')';
+    row.appendChild(a)});
+  const n=document.createElement('div');n.className='sub';
+  n.textContent='"Enviar para o Drive" abre o compartilhamento do celular: escolha Google Drive e a pasta. Os arquivos somem se a página for fechada antes de enviar ou baixar.';
+  box.appendChild(n);
+}
+// recupera a contagem de uma sessão que foi interrompida (aba fechada, celular travou)
+try{const old=JSON.parse(localStorage.getItem(KEY)||'null');
+  if(old&&old.events){const name='conta-lote_'+stamp(new Date(old.start))+'_recuperada';
+    showResult(old,[new File([makeCsv(old)],name+'.csv',{type:'text/csv'})],true)}}catch(e){}
 </script>
 </body>
 </html>
