@@ -130,7 +130,7 @@ footer{color:var(--muted);font-size:13px;text-align:center;padding:0 16px 28px}
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <div class="brand"><i></i>Conta Lote <small>versão 9</small></div>
+  <div class="brand"><i></i>Conta Lote <small>versão 10</small></div>
   <span class="pill" id="st">Carregando modelo...</span>
 </div></header>
 <main>
@@ -148,7 +148,7 @@ footer{color:var(--muted);font-size:13px;text-align:center;padding:0 16px 28px}
     </div>
   </div>
   <div class="side"><div class="brinco hang"><small>LOTE 12</small><b class="demo-n">42</b><span>cabeças</span></div>
-  <form class="card glass" id="form-leilao" autocomplete="on">
+  <form class="card glass" id="form-leilao" autocomplete="off">
     <h2>Dados do leilão</h2>
     <div class="sub">Preencha uma vez. Estes dados entram em todas as planilhas e nos nomes dos arquivos deste leilão.</div>
     <div class="grid">
@@ -458,11 +458,12 @@ function showApp(){$('tela-leilao').hidden=true;$('tela-app').hidden=false;
 $('form-leilao').onsubmit=e=>{e.preventDefault();
   const n={};for(const k in LF)n[k]=$(LF[k]).value.trim();
   if(!n.nome||!n.data){$('l-erro').hidden=false;$('l-erro').textContent='Preencha o nome do leilão e a data.';return}
-  $('l-erro').hidden=true;L=n;try{localStorage.setItem(LKEY,JSON.stringify(L))}catch(err){}
+  $('l-erro').hidden=true;L=n;
   $('vendedor').value=L.prop||'';showApp()};
 $('b-trocar').onclick=()=>{if(sess){status('Encerre o lote antes de editar o leilão','');return}showForm()};
-try{L=JSON.parse(localStorage.getItem(LKEY)||'null')}catch(e){L=null}
-if(L&&L.nome&&L.data===hoje())showApp();else{if(L)L.data='';showForm()}
+// sempre abre na configuração do leilão, com os campos em branco
+try{localStorage.removeItem(LKEY)}catch(e){}
+L=null;showForm();
 
 // ---------- histórico ----------
 function saveHist(){try{localStorage.setItem(HKEY,JSON.stringify(hist.slice(0,200)))}catch(e){}renderHist()}
